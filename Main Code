@@ -1,0 +1,64 @@
+import os
+import numpy as np
+import pandas as pd
+import shutil
+from tensorflow.keras.applications.xception import Xception, preprocess_input
+from tensorflow.keras.preprocessing.image import load_img, img_to_array
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report
+from xgboost import XGBClassifier
+
+# Define the path to your data directory
+data_dir = '/content/drive/MyDrive/plants original'
+
+# Define the list of plant class names
+class_names = ['betel leaf', 'kariyat', 'acalypha indica', 'mexican mint', 'solanum trilobatum']
+
+# Define the image size
+img_size = (224, 224)
+
+# Create an empty list to store the image features and labels
+features = []
+labels = []
+
+# Create a Xception model instance for feature extraction
+model = Xception(include_top=False, pooling='avg')
+
+# Loop over the class names and collect the image features and labels
+for class_name in class_names:
+    class_path = os.path.join(data_dir, class_name)
+    for img_name in os.listdir(class_path):
+        img_path = os.path.join(class_path, img_name)
+        # Load the image
+        img = load_img(img_path, target_size=img_size)
+        # Convert the image to a NumPy array
+        img_array = img_to_array(img)
+        # Preprocess the image
+        img_preprocessed = preprocess_input(img_array)
+        # Extract features for the image
+        features_img = model.predict(np.expand_dims(img_preprocessed, axis=0))[0]
+        # Add the features and label to the lists
+        features.append(features_img)
+        labels.append(class_names.index(class_name))
+
+# Convert the feature and label lists to NumPy arrays
+features = np.array(features)
+labels = np.array(labels)
+
+
+# Split the data into training and testing sets
+train_features, test_features, train_labels, test_labels = train_test_split(features, labels, test_size=0.2, random_state=42)
+
+# Train an XGBoost model on the training set
+model_xgb = XGBClassifier()
+model_xgb.fit(train_features, train_labels)
+
+# Evaluate the model on the testing set
+accuracy = model_xgb.score(test_features, test_labels)
+print('Accuracy:', accuracy)
+
+# Generate predictions on the entire test set
+test_predictions = model_xgb.predict(test_features)
+test_predictions_classes = [class_names[prediction] for prediction in test_predictions]
+test_labels_classes = [class_names[label] for label in test_labels]
+print(classification_report(test_labels_classes, test_predictions_classes))
