@@ -1,0 +1,48 @@
+import os
+from PIL import Image
+from torchvision.transforms import ToTensor, ToPILImage, RandomHorizontalFlip, RandomRotation, RandomCrop, RandomResizedCrop, ColorJitter
+import os
+input_dir = "/content/drive/MyDrive/original plant"
+output_dir = "/content/drive/MyDrive/augmented"
+def GAN_augment(input_dir="/content/drive/MyDrive/original plant", output_dir="/content/drive/MyDrive/augmented", num_augmentations=9):
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    # Define augmentation transforms
+    augmentations = [
+        RandomHorizontalFlip(p=0.5),
+        RandomRotation(degrees=45),
+        RandomCrop(size=(117, 220)),
+        RandomResizedCrop(size=(220, 220), scale=(0.5, 1.0)),
+        ColorJitter(brightness=0.3, contrast=0.3, saturation=0.3, hue=0.3)
+    ]
+
+    # Loop through all images in the input directory
+    for class_name in os.listdir(input_dir):
+        class_input_dir = os.path.join(input_dir, class_name)
+        class_output_dir = os.path.join(output_dir, class_name)
+        if not os.path.exists(class_output_dir):
+            os.makedirs(class_output_dir)
+        for image_filename in os.listdir(class_input_dir):
+            image_path = os.path.join(class_input_dir, image_filename)
+            # Load image
+            with Image.open(image_path) as img:
+                # Convert image to tensor
+                img_tensor = ToTensor()(img)
+                for i in range(num_augmentations):
+                    # Apply augmentation transforms to the image tensor
+                    augmented_tensor = img_tensor.clone()
+                    for transform in augmentations:
+                        augmented_tensor = transform(augmented_tensor)
+
+                    # Convert augmented tensor to image
+                    augmented_image = ToPILImage()(augmented_tensor)
+
+                    # Save augmented image to output directory
+                    filename, extension = os.path.splitext(image_filename)
+                    output_path = os.path.join(class_output_dir, f"{filename}_aug{i+1}{extension}")
+                    augmented_image.save(output_path)
+
+    print(f"Successfully generated {num_augmentations} augmented images for images in {input_dir} and saved them in {output_dir}")
+
+GAN_augment(input_dir, output_dir)
